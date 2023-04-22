@@ -1,19 +1,27 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"net/http"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/joho/godotenv"
 	// openai"github.com/sashabaranov/go-openai"
 )
 
-
+type Quote struct {
+	Quote          string `json:"q"`
+	Author         string `json:"a"`
+	AuthorImage    string `json:"i"`
+	CharacterCount string `json:"c"`
+	HTMLFormat     string `json:"h"`
+}
 
 func main() {
 	err := godotenv.Load()
@@ -30,6 +38,7 @@ func main() {
 	}
 
 	// Add an event handler for the ready event
+	// getQuotes()
 	dg.AddHandler(onReady)
 	dg.AddHandler(onMessageSend)
 
@@ -57,6 +66,23 @@ func onReady(s *discordgo.Session, r *discordgo.Ready) {
 }
 
 func onMessageSend(s *discordgo.Session, m *discordgo.MessageCreate) {
+	var resultQuote []Quote
+	resp, err := http.Get("https://zenquotes.io/api/random")
+	if err != nil {
+		fmt.Println("Error getting quote:", err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+
+	if err != nil {
+		fmt.Println("Error reading body:", err)
+	}
+
+	if err := json.Unmarshal(body, &resultQuote); err != nil {
+		fmt.Println("Can not unmarshal JSON")
+	}
+	// fmt.Println(result)
+
 	if m.Author.Bot {
 		return
 	}
@@ -69,13 +95,33 @@ func onMessageSend(s *discordgo.Session, m *discordgo.MessageCreate) {
 			fmt.Println("Error sending message:", err)
 		}
 	}
-}
 
-func get_Quotes() {
-	response, err := http.NewRequest("GET", "https://zenquotes.io/api/random", nil)
-	if err != nil {
-		fmt.Println("Error sending message:", err)
+	if m.Content == "!randomquote" {
+		// _, err := s.ChannelMessageSend(m.ChannelID, resultQuote[0].Quote+" - "+resultQuote[0].Author)
+		_, err := s.ChannelMessageSend(m.ChannelID, resultQuote[0].Quote+" - "+resultQuote[0].Author)
+		
+		if err != nil {
+			fmt.Println("Error sending message:", err)
+		}
 	}
-	fmt.Println(response)
-
 }
+
+// func getQuotes(s *discordgo.Session, m *discordgo.MessageCreate) {
+// 	var result []Quote
+// 	resp, err := http.Get("https://zenquotes.io/api/random")
+// 	if err != nil {
+// 		fmt.Println("Error getting quote:", err)
+// 	}
+// 	defer resp.Body.Close()
+// 	body, err := io.ReadAll(resp.Body)
+
+// 	if err != nil {
+// 		fmt.Println("Error reading body:", err)
+// 	}
+
+// 	if err := json.Unmarshal(body, &result); err != nil {
+// 		fmt.Println("Can not unmarshal JSON")
+// 	}
+// 	fmt.Println(result)
+
+// }
